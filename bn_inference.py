@@ -17,7 +17,7 @@ variable elimination (VE) algorithm.
 
 The program can be executed from the command line as follows:
 
-$ bn_inferece.py input1.bn input2.in [-verbose]
+$ bn_inference.py input1.bn input2.in [-verbose]
 
 where the input file with extension .bn defines the Bayesian Network and the input file with extension .in defines the
 query and evidence. The optional argument -verbose can be used to print all the steps of the VE algorithm.
