@@ -58,4 +58,11 @@ except IndexError:
     verbose = False
 
 
-readInputFiles(input1,input2)
+graph = readInputFiles(input1, input2)
+
+for node in graph.nodes:
+    print(node)
+
+print(graph.getPrVal('A', ['f', 'f', 't']))
+
+print(graph.getFactors('A')[2])
