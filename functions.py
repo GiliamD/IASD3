@@ -18,31 +18,36 @@ from classes import *
 from copy import deepcopy
 
 
-def readInputFiles(input1, input2):
+def readInputFiles(input1):
+    """
+    Reads Bayesian Network structure from input file and returns it in variable graph.
+    If any error occures, it returns -1.
 
+    :param input1: file name string
+    :return graph: contains whole BN structure
+    """
     graph = Graph()
 
     input1 = open(input1, 'r')
 
-    lineNo = 0
+    lineNo = 0  # line number indicator
 
-    ifVAR = False
-    ifCPT = False
+    ifVAR = False   # temporary variable indicating, if we currently are in VAR section of file
+    ifCPT = False   # temporary variable indicating, if we currently are in CPT section of file
 
-    nodeNo = -1
+    nodeNo = -1     # temporary variable, stores number of node we currently work with
 
-    ifTable = False
-    tableLine = []
+    ifTable = False # temporary variable indicating, if we currently are in table of CPT section of the file
+    tableLine = []  # temporary variable, stores whole table in single line
 
-    tmp = Node()
+    tmp = Node()    # temporary variable, stores object of class Node
 
     while True:
         lineNo += 1
         line = input1.readline()
 
-
-        if len(line) == 0:
-            if not ifTable:
+        if len(line) == 0:  # means, that we reached the end of the file
+            if not ifTable: # means, that we ended reading a CPT section and didn't find table
                 print("CPT statement without a table! Check entry ending at line %d." % (lineNo-1))
                 return -1
 
@@ -52,7 +57,7 @@ def readInputFiles(input1, input2):
 
             nCols = len(graph.nodes[nodeNo].parents) + 2
 
-            if nRows*nCols != len(tableLine):
+            if nRows*nCols != len(tableLine):   # if read assignments number is not as expected
                 print("Number of CPT entries is not as expected. Check CPT entry ending at line %d." % (lineNo-1))
                 print("Expected number of entries: ",nCols, ", got: ", len(tableLine))
                 return -1
@@ -69,6 +74,8 @@ def readInputFiles(input1, input2):
                 for j in range(len(graph.nodes[i].parents)):
                     graph.nodes[i].parents[j] = graph.getNode(graph.nodes[i].parents[j]).name
 
+            input1.close()
+
             print("File successfully loaded. %d lines have been read." % (lineNo-1))
             return graph
 
@@ -78,7 +85,7 @@ def readInputFiles(input1, input2):
         if line[0] == '#':
             continue
 
-        if line[0] == 'VAR':
+        if line[0] == 'VAR':  # new VAR section found
             if ifVAR:
                 print("Started new VAR definition before finishing last one. Check line %d." % lineNo)
                 return -1
@@ -93,7 +100,7 @@ def readInputFiles(input1, input2):
             print("VAR inside CPT in input file (remember about blank lines!)")
             return -1
 
-        if line[0] == 'CPT':
+        if line[0] == 'CPT':    # new CPT section found
             if ifCPT:
                 print("Started new CPT definition before finishing last one. Check line %d." % lineNo)
                 return -1
@@ -103,8 +110,8 @@ def readInputFiles(input1, input2):
             print("CPT inside VAR in input file (remember about blank lines!)")
             return -1
 
-        if line[0] == '\n':
-            if ifVAR:
+        if line[0] == '\n':     # end of section or more than one blank line one after another
+            if ifVAR:   # if VAR statement is active, then it will end here
                 if tmp.name == "":
                     print("VAR without name detected! Check VAR ending at %d line." % (lineNo-1))
                     return -1
@@ -114,8 +121,8 @@ def readInputFiles(input1, input2):
                 graph.nodes.append(deepcopy(tmp))
                 ifVAR = False
                 continue
-            if ifCPT:
-                if not ifTable:
+            if ifCPT:   # if CPT statement is active, then it will end here
+                if not ifTable:     # means, that we ended reading a CPT section and didn't find table
                     print("CPT statement without a table! Check entry ending at line %d." % (lineNo-1))
                     return -1
 
@@ -125,7 +132,7 @@ def readInputFiles(input1, input2):
 
                 nCols = len(graph.nodes[nodeNo].parents) + 2
 
-                if nRows*nCols != len(tableLine):
+                if nRows*nCols != len(tableLine):   # if read assignments number is not as expected
                     print("Number of CPT entries is not as expected. Check CPT entry ending at line %d." % (lineNo-1))
                     print("Expected number of entries: ",nCols, ", got: ", len(tableLine))
                     return -1
@@ -143,6 +150,7 @@ def readInputFiles(input1, input2):
                 ifCPT = False
                 continue
             continue
+        # a this point we know, that we are inside either a VAR or a CPT section
         if ifVAR:
             if line[0] == 'name':
                 try:
