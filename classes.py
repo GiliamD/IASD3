@@ -14,6 +14,7 @@
 This file contains all classes used in the main file bn_inference.py.
 """
 
+import itertools
 
 class Node:
     """
@@ -122,14 +123,14 @@ class Graph:
             return -1
         self.nodes.append(node)
 
-    def getNodesOfFactors(self, nodename):
+    def getNeighbours(self, nodename):
         """
-        Returns a list of all nodes that are involved in the factors that involve node 'nodename'.
+        Returns a list of all nodes adjacent to node 'nodename'.
 
         :param nodename: node's name or alias
         :return factors: list of nodes
         """
-        factors = [self.getNode(nodename)]
+        factors = []
 
         for parent in self.getNode(nodename).parents:
             factors.append(self.getNode(parent))
@@ -144,6 +145,9 @@ class Graph:
 
 
 class Factor:
+    """
+    Represents factor with ordered list of nodes involved and Conditional Probability Table (CPT).
+    """
 
     nodesInvolved = []
     CPT = []
@@ -157,3 +161,33 @@ class Factor:
         for row in self.CPT:
             if row[:-1] == assignment:
                 return row[-1]
+
+
+class UndirectedGraph:
+    """
+    Represents undirected graph associated with the directed input graph. Also contains number of neighbours for each
+    node, used as ordering heuristic.
+    """
+
+    nodes = []
+    edges = []
+    neighbours = []
+    numOfNeighbours = []
+
+    def __init__(self, graph, factors):
+
+        self.nodes = graph.nodes
+
+        for factor in factors:
+            combinations = list(itertools.combinations(factor.nodesInvolved,2))
+            for combination in combinations:
+                self.edges.append(combination)
+
+        for node in self.nodes:
+            tmp = []
+            for edge in self.edges:
+                if node.name in edge:
+                    tmp.append(edge[1-edge.index(node.name)])
+            self.neighbours.append(tmp)
+            self.numOfNeighbours.append(len(tmp))
+

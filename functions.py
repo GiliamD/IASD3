@@ -76,7 +76,7 @@ def readBNFile(input1):
                     for j in range(len(graph.nodes[i].parents)):
                         graph.nodes[i].parents[j] = graph.getNode(graph.nodes[i].parents[j]).name
 
-                print("File %s successfully loaded. %d lines have been read." % (input1.name, lineNo-1))
+                print("\nFile %s successfully loaded. %d lines have been read." % (input1.name, lineNo-1))
                 return graph
 
             if line[0] != '\n':
@@ -204,39 +204,40 @@ def readQueryFile(input2):
 
     :param input2: input file name (string) of the query file (.in)
     :return query: query variable name or alias (string)
-    :return evidence: vector of evidence variable names or aliases (string) and their value assignment (string or float)
+    :return evidence: vector of evidence variable names or aliases (string) and their value assignment (string or number)
     """
 
     with open(input2, 'r') as input2:
 
+        # Initialize query and evidence
         query, evidence = None, None
 
-        lineNo = 0
+        lineNo = 0  # Line counter
         for line in input2.readlines():
             lineNo += 1
-            if len(line) != 0 and line[0] != '#':
-                line = line.strip('\n').split()
+            if len(line) != 0 and line[0] != '#':   # Skip if empty line or comment
+                line = line.strip('\n').split()     # Remove end line
                 if line[0] == 'QUERY':
-                    if len(line) != 2:
+                    if len(line) != 2:              # Check if only one query variable
                         print('ERROR: QUERY line in file %s is incorrect. There can only be 1 query variable.' % input2.name)
-                        return query, evidence
+                        return query, evidence      # NOTE: if error, query and evidence are None
                     else:
-                        query = line[1]
+                        query = line[1]             # Get query variable if no error
                 elif line[0] == 'EVIDENCE':
                     try:
-                        n = int(line[1])
+                        n = int(line[1])            # Try get number of evidence variables
                     except ValueError:
                         print('ERROR: Number of evidence variables in file %s not specified.' % input2.name)
                         return query, evidence
 
-                    if (len(line)-2)/2 != n:
+                    if (len(line)-2)/2 != n:        # Check if specified number matches actual number
                         print('ERROR: Number of evidence variables in file %s does not match the specified number or '
                               'one or more evidence variable names or assignments are missing.' % input2.name)
                         return query, evidence
 
-                    evidence = line[2:]
+                    evidence = line[2:]             # Get evidence if no error
 
-                    # Restructure evidence into matrix
+                    # Restructure evidence into matrix: each variable on new row
                     k = 0
                     tmp = []
                     for i in range(0,len(evidence)-1,2):
@@ -244,18 +245,28 @@ def readQueryFile(input2):
                         k += 1
                     evidence = tmp
 
+        # If query or evidence is None, it's missing or not specified correctly
         if query is None:
             print('ERROR: No query specified in file %s.' % input2.name)
         elif evidence is None:
             print('ERROR: No evidence specified in file %s' % input2.name)
         else:
-            print('File %s successfully loaded. %d lines have been read.' % (input2.name, lineNo))
+            print('\nFile %s successfully loaded. %d lines have been read.' % (input2.name, lineNo))
 
-    return query, evidence
+    return query, evidence  # None if error
 
 
 def product(graph, factors, varName):
+    """
+    Computes the product of a set of factors in tabular form.
 
+    :param graph: Bayesian Network (Graph object)
+    :param factors: set of factors in tabular form (list of Factor objects)
+    :param varName: name of variable to eliminate (string) -> will be first column of table
+    :return factorProduct: product of set of factors, which is a new Factor object
+    """
+
+    # If only one factor, no multiplication
     if len(factors) == 1:
         return factors[0]
 
@@ -277,6 +288,7 @@ def product(graph, factors, varName):
     # Create factor table
     factorTable = np.zeros([len(combinations), len(factors)])
 
+    # Get probability values corresponding to given combinations of value assignments
     i = 0
     for combination in combinations:
         j = 0
@@ -288,10 +300,12 @@ def product(graph, factors, varName):
             j += 1
         i += 1
 
+    # Compute product of factors
     prod = np.ones(len(factorTable))
     for i in range(len(factorTable[0])):
         prod = np.multiply(prod, factorTable[:,i])
 
+    # Store product in Factor object with Conditional Probability Table (CPT) and ordered list of nodes involved
     factorProduct = Factor()
     factorProduct.nodesInvolved = vars
 
@@ -306,13 +320,22 @@ def product(graph, factors, varName):
 
 
 def marginalization(graph, factorProduct, varName):
+    """
+    Sums out the variable to eliminate.
 
+    :param graph: Bayesian Network (Graph object)
+    :param factorProduct: product of factors, which is a Factor object itself (output from product() function)
+    :param varName: name of variable to eliminate (string)
+    :return marg: marginalization of the factorProduct w.r.t. the variable to eliminate (also Factor object itself)
+    """
 
-    # # Get column of factorProduct corresponding to variable nameOrAlias
-    # varCol = factorProduct.nodesInvolved.index(varName)
-
+    # Get number of possible values of variable over which the sum is computed
     numValues = len(graph.getNode(varName).values)
+
+    # Step between rows that need to be summed
     step = int(len(factorProduct.CPT)/numValues)
+
+    # Store marginalization in Factor object with CPT and variables involved
     marg = Factor()
     marg.nodesInvolved = factorProduct.nodesInvolved
     marg.nodesInvolved.remove(varName)
@@ -326,6 +349,15 @@ def marginalization(graph, factorProduct, varName):
 
 
 def eliminateVar(graph, factors, varName, steps):
+    """
+    Eliminates specified variable by sum-product variable elimination.
+
+    :param graph: Bayesian Network (Graph object)
+    :param factors: set of factors in tabular form (list of Factor objects)
+    :param varName: name of variable to eliminate (string)
+    :param steps: list of steps of the algorithm (strings) to write to output file if -verbose option passed
+    :return factors: updated set (list) of factors
+    """
 
     # Get factors in which variable varName is involved
     factors_in = []
@@ -360,6 +392,7 @@ def eliminateVar(graph, factors, varName, steps):
     # Compute marginalization of prod w.r.t. the variable to eliminate, i.e. varName
     marg = marginalization(graph, prod, varName)
 
+    # Output steps
     steps.append('\n>> MARGINALIZATION OF FACTOR PRODUCT W.R.T. '+varName+':\n\n')
     steps.append('VARS: '+' '.join(prod.nodesInvolved)+'\nCPT:\n')
     tmp = deepcopy(marg.CPT)
@@ -371,22 +404,41 @@ def eliminateVar(graph, factors, varName, steps):
     # Add resulting factor to set of factors
     factors.append(marg)
 
+    # Output steps
     steps.append('\n>> REMOVE FACTORS INVOLVING VAR '+varName+' FROM SET OF FACTORS')
     steps.append('\n>> ADD MARGINALIZATION W.R.T. '+varName+' TO SET OF FACTORS\n')
 
     return factors
 
 
-def VE(graph, factors, varsToEliminate, query, evidence, order=[]):
+def VE(graph, factors, varsToEliminate, query, evidence, order):
+    """
+    Main function of the sum-product Variable Elimination (VE) algorithm.
+
+    :param graph: Bayesian Network (Graph object)
+    :param factors: set of factors in tabular form (list of Factor objects)
+    :param varsToEliminate: list of variable names (strings) to eliminate
+    :param query: query variable name (string)
+    :param evidence: list of evidence variable names and associated values
+    :param order: list specifying the order of variable elimination
+    :return PPD_str: solution — the posterior probability density (string format)
+    :return steps: list of strings containing a description of the main steps of the VE algorithm, written to output if -verbose specified
+    """
 
     steps = []
 
+    # Sort varsToEliminate according to order
+    varsToEliminate = [var for rank, var in sorted(zip(order, varsToEliminate))]
+
+    # Output steps
     steps.append('\nVARIABLES TO ELIMINATE:\n')
     steps.append(' '.join(varsToEliminate))
+    steps.append('\n\nHEURISTIC: MIN-NEIGHBOURS\n')
 
     # Eliminate all variables in varsToEliminate
     i = 0
     for varName in varsToEliminate:
+        # output steps
         i += 1
         steps.append('\n\n========== ITERATION %d ==========\n\n' % i)
         steps.append('ELIMINATING VAR: '+varName+'\n')
@@ -399,11 +451,13 @@ def VE(graph, factors, varsToEliminate, query, evidence, order=[]):
             for row in factor.CPT:
                 steps.append(' '.join(map(str,row))+'\n')
 
+        # Eliminate variable, get updated set of factors
         factors = eliminateVar(graph, factors, varName, steps)
 
     # Compute product of remaining factors in set
     prod = product(graph, factors, query)
 
+    # Output steps
     steps.append('\n\n========== WRAP-UP ==========\n')
     steps.append('\n>> PRODUCT OF REMAINING FACTORS:\n\n')
     steps.append('VARS: '+' '.join(prod.nodesInvolved)+'\nCPT:\n')
@@ -421,6 +475,7 @@ def VE(graph, factors, varsToEliminate, query, evidence, order=[]):
     for e in evidence:
         evidenceValues.append(e[-1])
 
+    # Output step
     steps.append('\n>> PROBABILITY VALUES GIVEN THE EVIDENCE:\n\n')
 
     # Get probability for the possible values of the query variable, given the evidence assignments
@@ -439,13 +494,22 @@ def VE(graph, factors, varsToEliminate, query, evidence, order=[]):
         PPD_str += [str(queryValue), str(PPD[i])]
         i += 1
 
-    steps.append('\n\n>> NORMALIZED POSTERIOR PROBABILITY DISTRIBUTION:\n\n')
+    # Output steps
+    steps.append('\n\n>> NORMALIZE PROBABILITY VALUES\n')
+    steps.append('\n>> POSTERIOR PROBABILITY DISTRIBUTION:\n\n')
     steps.append(' '.join(PPD_str))
 
     return PPD_str, steps
 
 
 def writeOutput(outputFileName, output):
+    """
+    Writes solution to output file and steps of the algorithm when asked for (-verbose).
+
+    :param outputFileName: same name as .in file, but with extension .sol (string)
+    :param output: list of output lines (strings)
+    :return:
+    """
 
     with open(outputFileName, 'w') as outputFile:
         outputFile.writelines(output)

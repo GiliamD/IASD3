@@ -64,7 +64,7 @@ graph = readBNFile(input1)
 query, evidence = readQueryFile(input2)
 
 # If any error, quit
-if graph == -1 or query == None or evidence == None:
+if graph == -1 or query is None or evidence is None:
     quit()
 
 # Initialize set of factors
@@ -82,6 +82,17 @@ for node in graph.nodes:
     # Add factor to set
     factors.append(factor)
 
+# Get associated undirected graph
+undirectedGraph = UndirectedGraph(graph, factors)
+
+# Get number of neighbours associated with each variable
+neighbours = undirectedGraph.numOfNeighbours
+
+# Get node names (same order as neighbours)
+nodeNames = []
+for node in undirectedGraph.nodes:
+    nodeNames.append(node.name)
+
 # Get variables to eliminate
 varsToEliminate = []
 for node in graph.nodes:
@@ -90,11 +101,19 @@ varsToEliminate.remove(query)
 for e in evidence:
     varsToEliminate.remove(e[0])
 
-# Get number of neighbours in
+# Remove entries associated with query and evidence variables from neighbours
+i = 0
+for nodeName in nodeNames:
+    if nodeName not in varsToEliminate:
+        neighbours.pop(i)
+    else:
+        i += 1
 
-query_dist, steps = VE(graph, factors, varsToEliminate, query, evidence, order=[])
+# Run Variable Elimination (VE) algorithm
+query_dist, steps = VE(graph, factors, varsToEliminate, query, evidence, order=neighbours)
+
+# Format output lines
 evidence = [item for sublist in evidence for item in sublist]
-
 output = [query, evidence, query_dist]
 output = [' '.join(sublist) if not isinstance(sublist,str) else sublist for sublist in output]
 output[0] = 'QUERY ' + output[0] + '\n'
@@ -102,9 +121,24 @@ output[1] = 'EVIDENCE ' + output[1] + '\n'
 output[2] = 'QUERY_DIST ' + output[2] + '\n'
 output.insert(0, '########## SOLUTION ##########\n')
 
+# If -verbose option passed, write VE algorithm steps to output file
 if verbose:
     output.append('########## STEPS ##########\n')
     output += steps
 
+# Write to output file with same name as .in file, but with extension .sol
 outputFileName = input2.replace('.in','.sol')
 writeOutput(outputFileName, output)
+
+
+# Timings of the VE function using random order and min-neighbour, 40 samples
+t_rand = [3.6, 2.0, 1.9, 3.6, 1.9, 2.2, 2.0, 3.1, 3.8, 2.1, 2.1, 1.9, 3.4, 3.5, 5.9, 3.3, 4.0, 3.3, 3.7, 3.3,
+          2.0, 3.8, 3.5, 1.9, 3.8, 2.3, 3.7, 3.2, 3.2, 1.9, 3.9, 1.8, 3.4, 1.9, 2.1, 3.2, 3.7, 3.5, 3.5, 4.9]
+t_rand_avg = sum(t_rand)/len(t_rand)
+t_neighbour = [3.4, 2.6, 1.9, 2.0, 2.0, 1.9, 1.9, 2.1, 2.2, 1.9, 1.9, 1.9, 2.1, 1.8, 2.0, 1.9, 2.1, 3.8, 1.9, 1.8,
+               2.0, 1.9, 1.9, 2.3, 1.9, 2.8, 1.8, 1.9, 2.0, 2.5, 1.9, 1.9, 2.0, 2.8, 2.0, 2.0, 2.2, 2.3, 2.2, 2.0]
+t_neighbour_avg = sum(t_neighbour)/len(t_neighbour)
+
+print('\nAverage computation time for the VE algorithm, computed from 40 samples, using random order and min-neighbour:\n')
+print('Random order: \t%0.1f ms' % t_rand_avg)
+print('Min-neighbour: \t%0.1f ms' % t_neighbour_avg)
