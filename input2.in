@@ -1,4 +1,4 @@
 # Query definition
 QUERY Burglary
 # evidence definition
-EVIDENCE 2 JohnCalls t MaryCalls f
+EVIDENCE 2 JohnCalls t MaryCalls t

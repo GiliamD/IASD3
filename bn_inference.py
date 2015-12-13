@@ -57,12 +57,38 @@ try:
 except IndexError:
     verbose = False
 
+# Read Bayesian Network and store in graph
+graph = readBNFile(input1)
 
-graph = readInputFiles(input1, input2)
+# Read query and evidence
+query, evidence = readQueryFile(input2)
 
+# If any error, quit
+if graph == -1 or query == None or evidence == None:
+    quit()
+
+# Initialize set of factors
+factors = []
 for node in graph.nodes:
-    print(node)
+    factor = Factor()
 
-print(graph.getPrVal('A', ['f', 'f', 't']))
+    # Initial factors are simply the CPDs, hence only the node itself and its parents are involved
+    factor.nodesInvolved.append(node.name)
+    for parent in node.parents:
+        factor.nodesInvolved.append(parent)
 
-print(graph.getFactors('A')[2])
+    factor.CPT = node.CPT
+
+    # Add factor to set
+    factors.append(factor)
+
+# Get variables to eliminate
+varsToEliminate = []
+for node in graph.nodes:
+    varsToEliminate.append(node.name)
+varsToEliminate.remove(query)
+for e in evidence:
+    varsToEliminate.remove(e[0])
+
+x = VE(graph, factors, varsToEliminate, query, evidence, order=[])
+print(x)

@@ -91,7 +91,17 @@ class Graph:
 
         :param nameOrAlias: node's name or alias
         """
+
+        nodeName = self.getNode(nameOrAlias).name
+
+        # Remove node from nodes list
         self.nodes.pop(self.getNodeNo(nameOrAlias))
+
+        # Remove node from parents list of other nodes
+        for node in self.nodes:
+            if nodeName in node.parents:
+                node.parents.remove(nodeName)
+
 
     def addNode(self, node):
         """
@@ -112,20 +122,38 @@ class Graph:
             return -1
         self.nodes.append(node)
 
-    def getFactors(self, nodename):
+    def getNodesOfFactors(self, nodename):
         """
-        Return a list of nodes, that are dependent on variable specified by 'nodename'.
+        Returns a list of all nodes that are involved in the factors that involve node 'nodename'.
 
         :param nodename: node's name or alias
         :return factors: list of nodes
         """
-        factors = []
+        factors = [self.getNode(nodename)]
+
+        for parent in self.getNode(nodename).parents:
+            factors.append(self.getNode(parent))
 
         for node in self.nodes:
             if node.name == nodename or node.alias == nodename:
-                factors.append(node)
                 continue
             for parent in node.parents:
                 if self.getNode(parent).name == nodename or self.getNode(parent).alias == nodename:
                     factors.append(node)
         return factors
+
+
+class Factor:
+
+    nodesInvolved = []
+    CPT = []
+
+    def __init__(self):
+        self.nodesInvolved = []
+        self.CPT = []
+
+    def getPrVal(self, assignment):
+
+        for row in self.CPT:
+            if row[:-1] == assignment:
+                return row[-1]
