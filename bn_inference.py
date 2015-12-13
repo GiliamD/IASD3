@@ -90,5 +90,21 @@ varsToEliminate.remove(query)
 for e in evidence:
     varsToEliminate.remove(e[0])
 
-x = VE(graph, factors, varsToEliminate, query, evidence, order=[])
-print(x)
+# Get number of neighbours in
+
+query_dist, steps = VE(graph, factors, varsToEliminate, query, evidence, order=[])
+evidence = [item for sublist in evidence for item in sublist]
+
+output = [query, evidence, query_dist]
+output = [' '.join(sublist) if not isinstance(sublist,str) else sublist for sublist in output]
+output[0] = 'QUERY ' + output[0] + '\n'
+output[1] = 'EVIDENCE ' + output[1] + '\n'
+output[2] = 'QUERY_DIST ' + output[2] + '\n'
+output.insert(0, '########## SOLUTION ##########\n')
+
+if verbose:
+    output.append('########## STEPS ##########\n')
+    output += steps
+
+outputFileName = input2.replace('.in','.sol')
+writeOutput(outputFileName, output)

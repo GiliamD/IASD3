@@ -325,13 +325,21 @@ def marginalization(graph, factorProduct, varName):
     return marg
 
 
-def eliminateVar(graph, factors, varName):
+def eliminateVar(graph, factors, varName, steps):
 
     # Get factors in which variable varName is involved
     factors_in = []
+    i = 0
+    factorNums = []
     for factor in factors:
+        i += 1
         if varName in factor.nodesInvolved:
             factors_in.append(factor)
+            factorNums.append(str(i))
+
+    # Output steps
+    steps.append('\n>> FACTORS INVOLVING VAR '+varName+' (indicated by number):\n\n')
+    steps.append(' '.join(factorNums)+'\n')
 
     # Remove factors_in from set of factors
     for factor in factors_in:
@@ -340,23 +348,70 @@ def eliminateVar(graph, factors, varName):
     # Compute product of factors in factors_in
     prod = product(graph, factors_in, varName)
 
+    # Output steps
+    steps.append('\n>> PRODUCT OF FACTORS '+' '.join(factorNums)+' (tabular form, rounded):\n\n')
+    steps.append('VARS: '+' '.join(prod.nodesInvolved)+'\nCPT:\n')
+    tmp = deepcopy(prod.CPT)
+    for i in range(len(tmp)):
+        tmp[i][-1] = '%.5f' % prod.CPT[i][-1]
+    for row in tmp:
+        steps.append(' '.join(map(str,row))+'\n')
+
     # Compute marginalization of prod w.r.t. the variable to eliminate, i.e. varName
     marg = marginalization(graph, prod, varName)
+
+    steps.append('\n>> MARGINALIZATION OF FACTOR PRODUCT W.R.T. '+varName+':\n\n')
+    steps.append('VARS: '+' '.join(prod.nodesInvolved)+'\nCPT:\n')
+    tmp = deepcopy(marg.CPT)
+    for i in range(len(tmp)):
+        tmp[i][-1] = '%.5f' % marg.CPT[i][-1]
+    for row in tmp:
+        steps.append(' '.join(map(str,row))+'\n')
 
     # Add resulting factor to set of factors
     factors.append(marg)
 
+    steps.append('\n>> REMOVE FACTORS INVOLVING VAR '+varName+' FROM SET OF FACTORS')
+    steps.append('\n>> ADD MARGINALIZATION W.R.T. '+varName+' TO SET OF FACTORS\n')
+
     return factors
 
 
-def VE(graph, factors, varsToEliminate, query, evidence, order):
+def VE(graph, factors, varsToEliminate, query, evidence, order=[]):
+
+    steps = []
+
+    steps.append('\nVARIABLES TO ELIMINATE:\n')
+    steps.append(' '.join(varsToEliminate))
 
     # Eliminate all variables in varsToEliminate
+    i = 0
     for varName in varsToEliminate:
-        factors = eliminateVar(graph, factors, varName)
+        i += 1
+        steps.append('\n\n========== ITERATION %d ==========\n\n' % i)
+        steps.append('ELIMINATING VAR: '+varName+'\n')
+        steps.append('\n>> SET OF FACTORS (tabular form):\n')
+        j = 0
+        for factor in factors:
+            j += 1
+            steps.append('\nFACTOR %d\n' %j)
+            steps.append('VARS: '+' '.join(factor.nodesInvolved)+'\nCPT:\n')
+            for row in factor.CPT:
+                steps.append(' '.join(map(str,row))+'\n')
+
+        factors = eliminateVar(graph, factors, varName, steps)
 
     # Compute product of remaining factors in set
     prod = product(graph, factors, query)
+
+    steps.append('\n\n========== WRAP-UP ==========\n')
+    steps.append('\n>> PRODUCT OF REMAINING FACTORS:\n\n')
+    steps.append('VARS: '+' '.join(prod.nodesInvolved)+'\nCPT:\n')
+    tmp = deepcopy(prod.CPT)
+    for i in range(len(tmp)):
+        tmp[i][-1] = '%.5f' % prod.CPT[i][-1]
+    for row in tmp:
+        steps.append(' '.join(map(str,row))+'\n')
 
     # Get Posterior Probability Density (PPD) given the assignment of evidence variables
     PPD = []
@@ -366,9 +421,13 @@ def VE(graph, factors, varsToEliminate, query, evidence, order):
     for e in evidence:
         evidenceValues.append(e[-1])
 
+    steps.append('\n>> PROBABILITY VALUES GIVEN THE EVIDENCE:\n\n')
+
     # Get probability for the possible values of the query variable, given the evidence assignments
     for queryValue in graph.getNode(query).values:
         PPD.append(prod.getPrVal([queryValue]+evidenceValues))
+
+        steps.append(' '.join([queryValue]+['%.5f ' % PPD[-1]]))
 
     # Normalize probability values and round
     PPD = np.round(PPD/sum(PPD),3)
@@ -380,4 +439,15 @@ def VE(graph, factors, varsToEliminate, query, evidence, order):
         PPD_str += [str(queryValue), str(PPD[i])]
         i += 1
 
-    return PPD_str
+    steps.append('\n\n>> NORMALIZED POSTERIOR PROBABILITY DISTRIBUTION:\n\n')
+    steps.append(' '.join(PPD_str))
+
+    return PPD_str, steps
+
+
+def writeOutput(outputFileName, output):
+
+    with open(outputFileName, 'w') as outputFile:
+        outputFile.writelines(output)
+
+    return 1
